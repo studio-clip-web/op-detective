@@ -1,4 +1,4 @@
-<!-- FORM VERSION: v2.3.63 -->
+<!-- FORM VERSION: v2.3.64 -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -535,7 +535,7 @@ body{padding-top:40px}
 </head>
 <body>
 <div id="temp-save-overlay"><div class="save-spinner"></div><div class="save-msg">データを保存中...</div><div class="save-sub">しばらくお待ちください</div></div>
-<div id="login-gate" data-managed="true"><div class="gate-title">Wedding Film 入稿フォーム</div><div class="gate-sub">ログインして入稿を開始してください</div><div class="gate-version">Form v2.3.63</div><button class="gate-btn" onclick="firebaseLogin()"><img src="https://www.google.com/favicon.ico" alt="Google">Googleでログイン</button><div class="restore-link" onclick="openRestorePanel()">管理者ログイン</div><div id="restore-panel" style="display:none"><div class="rp-row"><input id="restore-pass" type="password" placeholder="復元用パスワード"><button onclick="restoreVerifyPass()">確認</button></div><div id="restore-list"></div></div></div>
+<div id="login-gate" data-managed="true"><div class="gate-title">Wedding Film 入稿フォーム</div><div class="gate-sub">ログインして入稿を開始してください</div><div class="gate-version">Form v2.3.64</div><button class="gate-btn" onclick="firebaseLogin()"><img src="https://www.google.com/favicon.ico" alt="Google">Googleでログイン</button><div class="restore-link" onclick="openRestorePanel()">管理者ログイン</div><div id="restore-panel" style="display:none"><div class="rp-row"><input id="restore-pass" type="password" placeholder="復元用パスワード"><button onclick="restoreVerifyPass()">確認</button></div><div id="restore-list"></div></div></div>
 <div id="unsaved-bar">⚠ 未保存の変更があります。フォームを閉じる前に必ず保存してください。</div><div id="save-bar"><button id="save-btn" onclick="saveAll()">💾 保存する</button><span class="save-status" id="save-status"></span></div><div id="login-bar"><span class="user-name" id="login-user-name"></span><button id="login-btn" style="display:none" onclick="firebaseLogin()">Googleでログイン</button><button id="logout-btn" style="display:none" onclick="firebaseLogout()">ログアウト</button></div>
 <div id="upload-screen" style="display:none"></div>
 <div id="text-check-modal">
@@ -555,7 +555,7 @@ body{padding-top:40px}
     </div>
   </div>
 <div id="form-screen" style="display: block;">
-  <div class="sticky-wrap">
+  <div class="sticky-wrap" style="top: 72px;">
   <div class="form-header">
     <div class="form-header-title" id="form-title">OP_Detective 入稿フォーム</div>
     <div class="hdr-right" style="display:none">
@@ -619,7 +619,7 @@ body{padding-top:40px}
   <p class="success-msg">担当者より3営業日以内にご連絡いたします。<br>素敵な結婚式動画を一緒に作り上げましょう。</p>
 </div>
 <div id="confirm-screen">
-  <div class="sticky-wrap">
+  <div class="sticky-wrap" style="top: 72px;">
   <div class="form-header">
     <div class="form-header-title" id="confirm-title-text">Wedding Film — 入稿フォーム</div>
   </div>
@@ -695,7 +695,7 @@ body{padding-top:40px}
 
 // ==============================================
 // GENERATOR VERSION: 2026.07.02.007
-// FORM VERSION: v2.3.63
+// FORM VERSION: v2.3.64
 // 工程1: 再送信ロック（送信成功後にロック→パスワード画面→解除）
 // v2.3.7: posFieldIdスコープバグ修正（マット使用時の送信失敗を解消）
 // v2.3.8: TEMP命名のsubIdをセクション込みに（新郎/新婦で同名サブセクションが衝突しないように）
@@ -715,13 +715,15 @@ body{padding-top:40px}
 //          画像の高さをビューポート基準 max-height:calc(100vh - 230px) で直接キャップし、拡大率/縦横比に関わらず確定ボタンが常に見えるように。
 // v2.3.63: 【スマホUI】セクション下部のボタン群を、600px以下でグリッド3段組に(上段:前へ/次へ、中段:テキストチェック全幅、下段:入稿内容の確認を主アクションとして全幅・大)。
 //          文字の折り返し解消＋タップ領域44〜52px確保。PC(1行)は変更なし。
+// v2.3.64: 【最終セクション「次へ」ボタン】最終セクションでは表記は「次へ →」のまま、クリック時にvalidateAndConfirm(入稿内容の確認画面)へ遷移するように変更。
+//          isLast判定で分岐し、通常セクションの挙動(次セクションへ移動)は変更なし。PC/スマホ共通。
 // COLUMN MAP (v7)
 // A=0:title B=1:hint C=2:required D=3:type
 // E=4:maxLen F=5:typeSpec G=6:blockCfg H=7:filePrefix
 // ==============================================
 
 const SAVE_KEY = 'wf_v7';
-const _FORM_VERSION = 'v2.3.63';
+const _FORM_VERSION = 'v2.3.64';
 window._FORM_VERSION = _FORM_VERSION;
 let _rows = [], _secs = [], _curSec = 0, _blkCnt = 0, _saveTimer = null, _adminPass = 'studio2024';
 
@@ -1261,7 +1263,9 @@ function showSec(i) {
   submitBtn.textContent = '入稿内容の確認';
   submitBtn.onclick = validateAndConfirm;
   footer.appendChild(submitBtn);
-  const next = document.createElement('button'); next.className = 'btn-nav btn-nav-next'; next.textContent = '次へ →'; next.onclick = () => showSec(nextVisibleSec(i,1)); next.disabled = nextVisibleSec(i,1) === i;
+  const next = document.createElement('button'); next.className = 'btn-nav btn-nav-next'; next.textContent = '次へ →';
+  if (isLast) { next.onclick = validateAndConfirm; next.disabled = false; }
+  else { next.onclick = () => showSec(nextVisibleSec(i,1)); next.disabled = nextVisibleSec(i,1) === i; }
   footer.appendChild(next);
 
   el.appendChild(footer);
