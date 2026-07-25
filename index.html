@@ -1,4 +1,4 @@
-<!-- FORM VERSION: v2.3.64 -->
+<!-- FORM VERSION: v2.3.65 -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -233,6 +233,13 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .crop-handle.br{bottom:-5px;right:-5px;cursor:se-resize}
 .crop-modal-ftr{padding:.75rem 1.2rem;border-top:.5px solid var(--b);display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;flex-shrink:0}
 .crop-ratio-grp{display:flex;gap:5px}
+.crop-canvas-wrap{cursor:grab}
+.crop-canvas-wrap:active{cursor:grabbing}
+.crop-zoom-grp{display:flex;align-items:center;gap:6px}
+.crop-zoom-slider{width:110px;accent-color:var(--k);cursor:pointer}
+.btn-zoom{font-family:'Noto Sans JP',sans-serif;font-size:14px;line-height:1;background:none;border:.5px solid var(--bs);border-radius:var(--r);width:26px;height:26px;cursor:pointer;color:var(--m);transition:all .2s;display:flex;align-items:center;justify-content:center}
+.btn-zoom:hover{border-color:var(--a);color:var(--a)}
+@media(max-width:600px){.crop-zoom-slider{width:80px}}
 .btn-ratio{font-family:'Noto Sans JP',sans-serif;font-size:10px;letter-spacing:.1em;text-transform:uppercase;background:none;border:.5px solid var(--bs);border-radius:var(--r);padding:5px 12px;cursor:pointer;color:var(--m);transition:all .2s}
 .btn-ratio.active{background:var(--k);border-color:var(--k);color:var(--w)}
 .crop-actions{display:flex;gap:6px;flex-wrap:wrap}
@@ -535,7 +542,7 @@ body{padding-top:40px}
 </head>
 <body>
 <div id="temp-save-overlay"><div class="save-spinner"></div><div class="save-msg">データを保存中...</div><div class="save-sub">しばらくお待ちください</div></div>
-<div id="login-gate" data-managed="true"><div class="gate-title">Wedding Film 入稿フォーム</div><div class="gate-sub">ログインして入稿を開始してください</div><div class="gate-version">Form v2.3.64</div><button class="gate-btn" onclick="firebaseLogin()"><img src="https://www.google.com/favicon.ico" alt="Google">Googleでログイン</button><div class="restore-link" onclick="openRestorePanel()">管理者ログイン</div><div id="restore-panel" style="display:none"><div class="rp-row"><input id="restore-pass" type="password" placeholder="復元用パスワード"><button onclick="restoreVerifyPass()">確認</button></div><div id="restore-list"></div></div></div>
+<div id="login-gate" data-managed="true"><div class="gate-title">Wedding Film 入稿フォーム</div><div class="gate-sub">ログインして入稿を開始してください</div><div class="gate-version">Form v2.3.65</div><button class="gate-btn" onclick="firebaseLogin()"><img src="https://www.google.com/favicon.ico" alt="Google">Googleでログイン</button><div class="restore-link" onclick="openRestorePanel()">管理者ログイン</div><div id="restore-panel" style="display:none"><div class="rp-row"><input id="restore-pass" type="password" placeholder="復元用パスワード"><button onclick="restoreVerifyPass()">確認</button></div><div id="restore-list"></div></div></div>
 <div id="unsaved-bar">⚠ 未保存の変更があります。フォームを閉じる前に必ず保存してください。</div><div id="save-bar"><button id="save-btn" onclick="saveAll()">💾 保存する</button><span class="save-status" id="save-status"></span></div><div id="login-bar"><span class="user-name" id="login-user-name"></span><button id="login-btn" style="display:none" onclick="firebaseLogin()">Googleでログイン</button><button id="logout-btn" style="display:none" onclick="firebaseLogout()">ログアウト</button></div>
 <div id="upload-screen" style="display:none"></div>
 <div id="text-check-modal">
@@ -661,6 +668,11 @@ body{padding-top:40px}
         <button class="btn-ratio active" id="btn-ratio-fixed" onclick="setRatioMode('fixed')">1:1</button>
         <button class="btn-ratio" id="btn-ratio-free" onclick="setRatioMode('free')">フリー</button>
       </div>
+      <div class="crop-zoom-grp">
+        <button class="btn-zoom" type="button" onclick="cropZoomBy(-0.25)" aria-label="縮小">－</button>
+        <input type="range" id="crop-zoom-slider" class="crop-zoom-slider" min="1" max="4" step="0.05" value="1" oninput="setCropZoom(parseFloat(this.value))" aria-label="ズーム">
+        <button class="btn-zoom" type="button" onclick="cropZoomBy(0.25)" aria-label="拡大">＋</button>
+      </div>
       <div class="crop-actions">
         <button class="btn-crop-cancel" onclick="cropSkip()">そのまま入稿</button>
         <button class="btn-crop-cancel" onclick="cropCancel()">キャンセル</button>
@@ -695,7 +707,7 @@ body{padding-top:40px}
 
 // ==============================================
 // GENERATOR VERSION: 2026.07.02.007
-// FORM VERSION: v2.3.64
+// FORM VERSION: v2.3.65
 // 工程1: 再送信ロック（送信成功後にロック→パスワード画面→解除）
 // v2.3.7: posFieldIdスコープバグ修正（マット使用時の送信失敗を解消）
 // v2.3.8: TEMP命名のsubIdをセクション込みに（新郎/新婦で同名サブセクションが衝突しないように）
@@ -717,13 +729,16 @@ body{padding-top:40px}
 //          文字の折り返し解消＋タップ領域44〜52px確保。PC(1行)は変更なし。
 // v2.3.64: 【最終セクション「次へ」ボタン】最終セクションでは表記は「次へ →」のまま、クリック時にvalidateAndConfirm(入稿内容の確認画面)へ遷移するように変更。
 //          isLast判定で分岐し、通常セクションの挙動(次セクションへ移動)は変更なし。PC/スマホ共通。
+// v2.3.65: 【トリミングにズーム追加】画像側をパン+拡大縮小する方式(枠のドラッグ/リサイズ/比率は従来のまま)。
+//          スマホ=2本指ピンチ、PC=ホイール、共通=フッターのスライダー/±ボタン(1〜4倍)。CSS transformで画像を拡大しgetBoundingClientRectが反映するためgetIB()は自動でズーム後の矩形を返す→cropApply系の座標変換は無改修。
+//          枠は可視範囲(fit矩形∩wrap=getVIB)にクランプし、切り取り不可の見切れ領域を選べないように。パンはfit位置から食い込まない範囲にクランプ。cropApply/cropApplyIdentifyはgetIB()のまま正しく原寸ピクセルへマップ。
 // COLUMN MAP (v7)
 // A=0:title B=1:hint C=2:required D=3:type
 // E=4:maxLen F=5:typeSpec G=6:blockCfg H=7:filePrefix
 // ==============================================
 
 const SAVE_KEY = 'wf_v7';
-const _FORM_VERSION = 'v2.3.64';
+const _FORM_VERSION = 'v2.3.65';
 window._FORM_VERSION = _FORM_VERSION;
 let _rows = [], _secs = [], _curSec = 0, _blkCnt = 0, _saveTimer = null, _adminPass = 'studio2024';
 
@@ -2118,7 +2133,9 @@ function updateAdd(btn, grp, cfg, subHdr) {
 // ---------- Crop ----------
 let _cropCb = null, _cropRatio = null, _cropRatioActive = null, _cropFile = null, _cropWithId = false;
 const CROP_MAX_EDGE = 2500;  // トリミング/縮小後の長辺上限（px）
+const CROP_ZOOM_MAX = 4;     // ズーム最大倍率
 let _cropBox = { x:0, y:0, w:0, h:0 }, _drag = null;
+let _cropZoom = 1, _cropPan = { x:0, y:0 }, _pan = null, _pinch = null;  // 画像のパン+ズーム（枠は既存ロジックのまま、画像側を動かす）
 
 function openCrop(file, ratioLabel, ratio, cb, withId) {
   _cropWithId = !!withId;
@@ -2143,7 +2160,9 @@ function openCrop(file, ratioLabel, ratio, cb, withId) {
   if (_idBtn) _idBtn.style.display = _cropWithId ? '' : 'none';
   const img = document.getElementById('crop-img'); img.src = '';
   document.getElementById('crop-box').style.opacity = '0';
-  const fr = new FileReader(); fr.onload = e => { img.onload = () => setTimeout(() => { initCropBox(); const cb=document.getElementById('crop-box'); if(cb)cb.style.opacity='1'; }, 100); img.src = e.target.result; }; fr.readAsDataURL(file);
+  _cropZoom = 1; _cropPan = { x:0, y:0 }; applyCropTransform();
+  const _zs = document.getElementById('crop-zoom-slider'); if (_zs) _zs.value = 1;
+  const fr = new FileReader(); fr.onload = e => { img.onload = () => setTimeout(() => { _cropZoom=1; _cropPan={x:0,y:0}; applyCropTransform(); initCropBox(); const cb=document.getElementById('crop-box'); if(cb)cb.style.opacity='1'; }, 100); img.src = e.target.result; }; fr.readAsDataURL(file);
 }
 
 function cropCancel() { document.getElementById('crop-overlay').style.display='none'; _cropCb=null; _cropFile=null; }
@@ -2193,6 +2212,33 @@ function updateCropEl() { const b=document.getElementById('crop-box'); b.style.l
 
 function getIB() { const img=document.getElementById('crop-img'); const wrap=document.getElementById('crop-wrap'); const wr=wrap.getBoundingClientRect(); const ir=img.getBoundingClientRect(); return{x:ir.left-wr.left,y:ir.top-wr.top,w:ir.width,h:ir.height}; }
 
+// ---- パン+ズーム（画像側を動かす。getBoundingClientRectはtransformを反映するのでgetIB()は自動でズーム後の矩形を返す） ----
+function applyCropTransform() { const img=document.getElementById('crop-img'); if(!img)return; img.style.transformOrigin='center center'; img.style.transform=`translate(${_cropPan.x}px,${_cropPan.y}px) scale(${_cropZoom})`; }
+function getWrapBox() { const wrap=document.getElementById('crop-wrap'); const r=wrap.getBoundingClientRect(); return{w:r.width,h:r.height}; }
+// 画像の見えている部分（ズームで枠外にはみ出た分はoverflow:hiddenで切れるので、実際に切り取れる範囲はfit矩形∩wrap）
+function getVIB() { const ib=getIB(); const wb=getWrapBox(); const x=Math.max(ib.x,0),y=Math.max(ib.y,0); const x2=Math.min(ib.x+ib.w,wb.w),y2=Math.min(ib.y+ib.h,wb.h); return{x,y,w:Math.max(0,x2-x),h:Math.max(0,y2-y)}; }
+function clampPan() { const img=document.getElementById('crop-img'); const fw=img.offsetWidth,fh=img.offsetHeight; const ox=(fw*_cropZoom-fw)/2,oy=(fh*_cropZoom-fh)/2; _cropPan.x=Math.max(-ox,Math.min(ox,_cropPan.x)); _cropPan.y=Math.max(-oy,Math.min(oy,_cropPan.y)); }
+function clampBoxToVIB() { const vib=getVIB(); if(vib.w<=0||vib.h<=0)return; let{x,y,w,h}=_cropBox; const r=_cropRatioActive; if(w>vib.w){w=vib.w;if(r)h=w/r.w*r.h;} if(h>vib.h){h=vib.h;if(r)w=h/r.h*r.w;} if(w>vib.w)w=vib.w; if(h>vib.h)h=vib.h; x=Math.max(vib.x,Math.min(vib.x+vib.w-w,x)); y=Math.max(vib.y,Math.min(vib.y+vib.h-h,y)); _cropBox={x,y,w,h}; }
+function setCropZoom(z) { z=Math.max(1,Math.min(CROP_ZOOM_MAX,z)); _cropZoom=z; clampPan(); applyCropTransform(); clampBoxToVIB(); updateCropEl(); const sl=document.getElementById('crop-zoom-slider'); if(sl)sl.value=z; }
+function cropZoomBy(d) { setCropZoom(_cropZoom+d); }
+window.setCropZoom = setCropZoom; window.cropZoomBy = cropZoomBy;
+function startPan(e) { _pan={sx:e.clientX,sy:e.clientY,px:_cropPan.x,py:_cropPan.y}; }
+function onPan(e) { if(!_pan)return; _cropPan.x=_pan.px+(e.clientX-_pan.sx); _cropPan.y=_pan.py+(e.clientY-_pan.sy); clampPan(); applyCropTransform(); clampBoxToVIB(); updateCropEl(); }
+function endPan() { _pan=null; }
+function startPinch(e) { const a=e.touches[0],b=e.touches[1]; _pinch={d:Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY),z:_cropZoom}; _pan=null; _drag=null; }
+function onPinch(e) { if(!_pinch||e.touches.length<2)return; const a=e.touches[0],b=e.touches[1]; const d=Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY); if(_pinch.d>0)setCropZoom(_pinch.z*(d/_pinch.d)); }
+function endPinch() { _pinch=null; }
+(function bindCropPanZoom(){
+  const wrap=document.getElementById('crop-wrap'); if(!wrap)return;
+  wrap.addEventListener('mousedown', e=>{ if(e.target.closest('.crop-box'))return; e.preventDefault(); startPan(e); });
+  wrap.addEventListener('touchstart', e=>{ if(e.touches.length===2){ e.preventDefault(); startPinch(e); return; } if(e.target.closest('.crop-box'))return; e.preventDefault(); startPan(e.touches[0]); }, {passive:false});
+  wrap.addEventListener('wheel', e=>{ e.preventDefault(); setCropZoom(_cropZoom*(e.deltaY<0?1.1:0.9)); }, {passive:false});
+  document.addEventListener('mousemove', onPan);
+  document.addEventListener('mouseup', endPan);
+  document.addEventListener('touchmove', e=>{ if(_pinch){ e.preventDefault(); onPinch(e); return; } if(_pan){ e.preventDefault(); onPan(e.touches[0]); } }, {passive:false});
+  document.addEventListener('touchend', e=>{ endPan(); if(e.touches.length<2)endPinch(); });
+})();
+
 const _cb = document.getElementById('crop-box');
 if(_cb){
   _cb.addEventListener('mousedown', startDrag);
@@ -2207,7 +2253,7 @@ function startDrag(e) { if(e.stopPropagation) e.stopPropagation(); _drag={h:(e.t
 function endDrag() { _drag=null; }
 function onDrag(e) {
   if(!_drag) return;
-  const ib=getIB(); const dx=e.clientX-_drag.sx, dy=e.clientY-_drag.sy;
+  const ib=getVIB(); const dx=e.clientX-_drag.sx, dy=e.clientY-_drag.sy;
   const sb=_drag.sb; const r=_cropRatioActive; const MIN=30;
   let{x,y,w,h}=sb;
   if(_drag.h==='move'){x=Math.max(ib.x,Math.min(ib.x+ib.w-w,sb.x+dx));y=Math.max(ib.y,Math.min(ib.y+ib.h-h,sb.y+dy));}
@@ -2222,7 +2268,7 @@ function onDrag(e) {
 
 function setRatioMode(mode) {
   if(mode==='free'){_cropRatioActive=null;document.getElementById('btn-ratio-free').classList.add('active');document.getElementById('btn-ratio-fixed').classList.remove('active');}
-  else{_cropRatioActive=_cropRatio;document.getElementById('btn-ratio-fixed').classList.add('active');document.getElementById('btn-ratio-free').classList.remove('active');if(_cropRatio){const ib=getIB();const r=_cropRatio.w/_cropRatio.h;let bw=_cropBox.w,bh=bw/r;if(_cropBox.y+bh>ib.y+ib.h){bh=ib.y+ib.h-_cropBox.y;bw=bh*r;}_cropBox.w=bw;_cropBox.h=bh;updateCropEl();}}
+  else{_cropRatioActive=_cropRatio;document.getElementById('btn-ratio-fixed').classList.add('active');document.getElementById('btn-ratio-free').classList.remove('active');if(_cropRatio){const ib=getVIB();const r=_cropRatio.w/_cropRatio.h;let bw=_cropBox.w,bh=bw/r;if(_cropBox.y+bh>ib.y+ib.h){bh=ib.y+ib.h-_cropBox.y;bw=bh*r;}_cropBox.w=bw;_cropBox.h=bh;clampBoxToVIB();updateCropEl();}}
 }
 
 function cropApplyIdentify() {
